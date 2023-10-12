@@ -12,10 +12,15 @@
 #define A_RCV 0x03
 #define C_SET 0x03
 #define C_UA 0x07
+#define ESC 0x7D
 
 // GLOBALS
 int alarmEnabled = FALSE;
 int alarmCount = 0;
+int fd = 0;
+int frameNumber = 0;
+unsigned char escFlag[] = {ESC, 0x5E};
+unsigned char escEsc[] = {ESC, 0x5d}; 
 
 // Alarm function handler
 void alarmHandler(int signal)
@@ -31,7 +36,6 @@ void alarmHandler(int signal)
 ////////////////////////////////////////////////
 int llopen(LinkLayer connectionParameters)
 {
-    // TODO
 
     const char *serialPortName = connectionParameters.serialPort;
     LinkLayerRole role = connectionParameters.role;
@@ -44,7 +48,7 @@ int llopen(LinkLayer connectionParameters)
 
     // Open serial port device for reading and writing, and not as controlling tty
     // because we don't want to get killed if linenoise sends CTRL-C.
-    int fd = open(serialPortName, O_RDWR | O_NOCTTY);
+    fd = open(serialPortName, O_RDWR | O_NOCTTY);
 
     if (fd < 0)
     {
@@ -91,11 +95,10 @@ int llopen(LinkLayer connectionParameters)
     unsigned char received[5] = {0};
     int index = 0;
     enum STATE state = START;
+    unsigned char set_command[] = {FLAG_RCV, A_RCV, C_SET, A_RCV ^ C_SET, FLAG_RCV};
 
     switch (role) {
         case LlTx:
-
-            unsigned char set_command[] = {FLAG_RCV, A_RCV, C_SET, A_RCV ^ C_SET, FLAG_RCV};
 
             while(stop == FALSE && nRetransmissions > 0) {
 
@@ -284,12 +287,54 @@ int llopen(LinkLayer connectionParameters)
     return 0;
 }
 
+int writeByte(const unsigned char* byte) {
+    int bytes;
+    if(*byte == FLAG_RCV) {
+        bytes = write(fd, escFlag, 2);
+        if(bytes < 2) return -1;
+    } else if(*byte == ESC) {
+        bytes = write(fd, escEsc, 2);
+        if(bytes < 2) return -1;
+    } else {
+        bytes = write(fd, byte, 1);
+        if(bytes < 1) return -1;
+    }
+    return 0;
+}
+
 ////////////////////////////////////////////////
 // LLWRITE
 ////////////////////////////////////////////////
-int llwrite(const unsigned char *buf, int bufSize)
-{
-    // TODO
+int llwrite(const unsigned char *buf, int bufSize) {
+   
+
+    unsigned char FLAG_C = frameNumber = 0 ? 0x00 : 0x40;
+    unsigned char header[] = { FLAG_RCV, A_RCV, FLAG_C, A_RCV ^ FLAG_C};
+
+    int bytes = write(fd, header, 4);
+    if(bytes < 4) return -1;
+
+    unsigned char bcc2 = buf[0];
+
+    if(writeByte(&buf[0])) {
+        return -1;
+    }
+
+    int bytesWritten = 1;
+    while(bytesWritten < bufSize) {
+
+        bcc2 ^= buf[bytesWritten];
+        if(writeByte(&buf[bytesWritten++])) {
+            return -1;
+        }
+    }
+
+    if(writeByte(&bcc2)) {
+        return -1;
+    }
+    
+    bytes = write(fd, (void*)FLAG_RCV, 4);
+    if(bytes < 1) return -1;
 
     return 0;
 }
