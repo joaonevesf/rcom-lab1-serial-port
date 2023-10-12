@@ -287,17 +287,16 @@ int llopen(LinkLayer connectionParameters)
     return 0;
 }
 
-int writeByte(const unsigned char* byte) {
-    int bytes;
+int writeByte(const unsigned char* byte, unsigned char* buffer, int* idx) {
     if(*byte == FLAG_RCV) {
-        bytes = write(fd, escFlag, 2);
-        if(bytes < 2) return -1;
+        memcpy(&buffer[*idx], escFlag, 2);
+        *idx = *idx + 2;
     } else if(*byte == ESC) {
-        bytes = write(fd, escEsc, 2);
-        if(bytes < 2) return -1;
+        memcpy(&buffer[*idx], escEsc, 2);
+        *idx = *idx + 2;
     } else {
-        bytes = write(fd, byte, 1);
-        if(bytes < 1) return -1;
+        memcpy(&buffer[*idx], byte, 1);
+        *idx = *idx + 1;
     }
     return 0;
 }
@@ -310,31 +309,30 @@ int llwrite(const unsigned char *buf, int bufSize) {
 
     unsigned char FLAG_C = frameNumber = 0 ? 0x00 : 0x40;
     unsigned char header[] = { FLAG_RCV, A_RCV, FLAG_C, A_RCV ^ FLAG_C};
-
-    int bytes = write(fd, header, 4);
-    if(bytes < 4) return -1;
+    unsigned char buffer[bufSize * 2];
+    int idx = 5;
+    
+    memcpy(buffer, header, 4);
 
     unsigned char bcc2 = buf[0];
-
-    if(writeByte(&buf[0])) {
-        return -1;
-    }
+    
+    writeByte(&buf[0], buffer, &idx);
 
     int bytesWritten = 1;
     while(bytesWritten < bufSize) {
 
         bcc2 ^= buf[bytesWritten];
-        if(writeByte(&buf[bytesWritten++])) {
-            return -1;
-        }
+        writeByte(&buf[bytesWritten++], buffer, &idx);
+
     }
 
-    if(writeByte(&bcc2)) {
+    writeByte(&bcc2, buffer, &idx);
+    buffer[idx++] = FLAG_RCV;
+
+    int bytes = write(fd, buffer, idx);
+    if(bytes < idx) {
         return -1;
     }
-    
-    bytes = write(fd, (void*)FLAG_RCV, 4);
-    if(bytes < 1) return -1;
 
     return 0;
 }
