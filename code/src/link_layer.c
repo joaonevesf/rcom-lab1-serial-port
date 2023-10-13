@@ -201,7 +201,7 @@ int llopen(LinkLayer connectionParameters) {
             while(stop == FALSE && nRepeated < nRetransmissions) {
 
                 int byte1 = write(fd, set_command, 5);
-                printf("%d bytes written\n", byte1);
+                printf("%d bytes written (SET)\n", byte1);
 
                 while (stop == FALSE && alarmCount < timout) {
                     if (alarmEnabled == FALSE) {
@@ -230,7 +230,7 @@ int llopen(LinkLayer connectionParameters) {
 
 
             int bytes = write(fd, ua_reply, 5);
-            printf("%d bytes written\n", bytes);
+            printf("%d bytes written (UA)\n", bytes);
 
             break;
 
@@ -261,7 +261,7 @@ void writeByte(const unsigned char* byte, unsigned char* buffer, int* idx) {
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize) {
    
-    unsigned char control = frameNumber = 0 ? CI_0 : CI_1;
+    unsigned char control = frameNumber == 0 ? CI_0 : CI_1;
     unsigned char header[] = { FLAG_RCV, A_T, control, A_T ^ control};
     unsigned char buffer[bufSize * 2];
     int idx = 5;
@@ -271,6 +271,7 @@ int llwrite(const unsigned char *buf, int bufSize) {
     unsigned char bcc2 = buf[0];
     
     writeByte(&buf[0], buffer, &idx);
+
 
     int bytesWritten = 1;
     while(bytesWritten < bufSize) {
@@ -291,8 +292,13 @@ int llwrite(const unsigned char *buf, int bufSize) {
 
         if(retransmission == TRUE) {
             bytes = write(fd, buffer, idx);
-            printf("%d bytes written\n", bytes);
+            for(int i = 0; i < idx; i++) {
+                printf("%x ", buffer[i]);
+            }
+            printf("\n");
+            printf("%d bytes LLWRITE written\n", bytes);
             if(bytes < idx) {
+                printf("iii\n");
                 return -1;
             }
         }
@@ -361,7 +367,7 @@ int sendDataResponse(int valid, unsigned char control) {
     if(bytes < 5) {
         return -1;
     }
-    printf("%d bytes written\n", bytes);
+    printf("%d bytes DATA written\n", bytes);
     return accept;
 }                      
     
@@ -425,9 +431,9 @@ int llread(unsigned char *packet) {
 
                     unsigned char bcc2 = packet[0]; 
                     for(int i = 1; i < index; i++) {
+                        bcc2 ^= packet[i];
                         printf("%x ", packet[i]);
                     }
-
                     int accept = sendDataResponse(bcc2Received == bcc2, control);
                     if(accept == -1) {
                         return -1;
@@ -459,11 +465,16 @@ int llread(unsigned char *packet) {
 }
 
 int sendDISC() {
-    unsigned char disc[] = {FLAG_RCV, role == LlTx ? A_T : A_R, C_DISC, role == LlTx ? A_T : A_R ^ C_DISC, FLAG_RCV};
+    unsigned char disc[] = {FLAG_RCV, role == LlTx ? A_T : A_R, C_DISC,(role == LlTx ? A_T : A_R) ^ C_DISC, FLAG_RCV};
     int bytes = write(fd, disc, 5);
     if(bytes < 5) {
         return -1;
     }
+    printf("SENDING DISC\n");
+    for(int i = 0; i < 5; i++) {
+        printf("%x ", disc[i]);
+    }
+    printf("\n");
     printf("%d bytes DISC written\n", bytes);
     return 0;
 }
@@ -477,11 +488,10 @@ int llclose(int showStatistics) {
     int index = 0;
     unsigned char received[5] = {0};
     unsigned char ua_reply[] = {FLAG_RCV, A_T, C_UA, A_T ^ C_UA, FLAG_RCV};
-    int nRepeated = 0;
     
     switch (role) {
         case LlTx:
-            while(stop == FALSE && nRepeated < nRetransmissions) {
+            while(stop == FALSE) {
                 if(sendDISC() == -1) {
                     return -1;
                 }
@@ -491,37 +501,44 @@ int llclose(int showStatistics) {
                         alarmEnabled = TRUE;
                     }
                     stop = parseFrame(CLOSETX, &state, received, &index);
-                    printf("DISC received\n");
                 }
+                // print current received
+                for (size_t i = 0; i < 5; i++) {
+                    printf("%x ", received[i]);
+                }
+                printf("\n");
+                
                 alarmCount = 0;
-                nRepeated++;
             }
-            int bytes = write(fd, ua_reply, 5);
-            if(bytes < 5) {
-                return -1;
+            if(stop == TRUE){
+                printf("DISC received\n");
+                int bytes = write(fd, ua_reply, 5);
+                if(bytes < 5) {
+                    return -1;
+                }
+                printf("%d bytes UA written\n", bytes);
             }
-            printf("%d bytes UA written\n", bytes);
             break;
         case LlRx:  
             while (stop == FALSE) {
                 stop = parseFrame(CLOSERX, &state, received, &index);
             }
-            if(sendDISC() == -1) {
-                return -1;
-            }
-            printf("DISC sent\n");
+            stop = FALSE;
             while (stop == FALSE)
             {
+                if(sendDISC() == -1) {
+                    return -1;
+                }
                 while (stop == FALSE && alarmCount < timout) {
                     if (alarmEnabled == FALSE) {
                         alarm(1); // Set alarm to be triggered in 1s
                         alarmEnabled = TRUE;
                     }
                     stop = parseFrame(RCV_UA, &state, received, &index); // RECEIVES UA
-                    printf("DISC received\n");
                 }
                 alarmCount = 0;
             }
+            printf("DISC received\n");
             break;
         default:
             break;
@@ -534,5 +551,5 @@ int llclose(int showStatistics) {
 
     close(fd);
     
-    return 1;
+    return 0;
 }
