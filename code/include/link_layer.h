@@ -36,8 +36,8 @@ typedef enum
 
 typedef enum 
 {
-    OPENTX, 
-    OPENRX, 
+    RCV_SET, 
+    RCV_UA, 
     WRITE, 
     READ, 
     CLOSETX,

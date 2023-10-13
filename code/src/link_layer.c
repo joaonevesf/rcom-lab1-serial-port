@@ -27,11 +27,12 @@
 int alarmEnabled = FALSE;
 int alarmCount = 0;
 int fd = 0;
+struct termios oldtio; // old settings to restore
 int frameNumber = 0;
 unsigned char escFlag[] = {ESC, 0x5E};
 unsigned char escEsc[] = {ESC, 0x5d}; 
 int timout = 0;
-int nRetransmissions = 0;
+int nRetransmissions = 0; 
 LinkLayerRole role;
 
 // Alarm function handler
@@ -43,10 +44,10 @@ void alarmHandler(int signal) {
 
 int cHandler(Action act, unsigned char buf) {
     switch(act) {
-        case OPENTX:
+        case RCV_SET:
             if(buf == C_SET) return 1;
             break;
-        case OPENRX:
+        case RCV_UA:
             if(buf == C_UA) return 1;
             break;
         case WRITE:
@@ -78,7 +79,12 @@ int parseFrame(Action act, State* state, unsigned char* received, int* index) {
             }
             break;
         case FLAG:
-            if(buf == A_T) {
+            if(buf == A_R && act == CLOSETX) {
+                *state = A;
+                received[*index] = buf;
+                *index+=1;
+            }
+            else if (buf == A_T && act != CLOSETX) {
                 *state = A;
                 received[*index] = buf;
                 *index+=1;
@@ -155,7 +161,6 @@ int llopen(LinkLayer connectionParameters) {
         exit(-1);
     }
 
-    struct termios oldtio;
     struct termios newtio;
 
     if (tcgetattr(fd, &oldtio) == -1) {
@@ -188,11 +193,12 @@ int llopen(LinkLayer connectionParameters) {
     State state = START;
     unsigned char set_command[] = {FLAG_RCV, A_T, C_SET, A_T ^ C_SET, FLAG_RCV};
     unsigned char ua_reply[] = {FLAG_RCV, A_T, C_UA, A_T ^ C_UA, FLAG_RCV};
+    int nRepeated = 0;
 
     switch (role) {
         case LlTx:
 
-            while(stop == FALSE && nRetransmissions > 0) {
+            while(stop == FALSE && nRepeated < nRetransmissions) {
 
                 int byte1 = write(fd, set_command, 5);
                 printf("%d bytes written\n", byte1);
@@ -203,11 +209,11 @@ int llopen(LinkLayer connectionParameters) {
                         alarmEnabled = TRUE;
                     }
 
-                    stop = parseFrame(OPENTX, &state, received, &index);
+                    stop = parseFrame(RCV_UA, &state, received, &index);
 
                 }
                 alarmCount = 0;
-                nRetransmissions--;
+                nRepeated++;
             }
             if(stop  == FALSE) return -1;
             printf("UA received\n");
@@ -217,7 +223,7 @@ int llopen(LinkLayer connectionParameters) {
         case LlRx:
             
             while (stop == FALSE) {
-                stop = parseFrame(OPENRX, &state, received, &index);
+                stop = parseFrame(RCV_SET, &state, received, &index);
             }
 
             printf("Flag received\n");
@@ -233,15 +239,6 @@ int llopen(LinkLayer connectionParameters) {
             break;
     }
 
-
-// -----------------------------------------------------
-
-    if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
-        perror("tcsetattr");
-        exit(-1);
-    }
-
-    close(fd);
 
     return 0;
 }
@@ -288,8 +285,9 @@ int llwrite(const unsigned char *buf, int bufSize) {
     int good_packet = FALSE;
     int retransmission = TRUE;
     State state = START;
+    int nRepeated = 0;
     
-    while(stop == FALSE && nRetransmissions > 0) {
+    while(stop == FALSE && nRepeated < nRetransmissions) {
 
         if(retransmission == TRUE) {
             bytes = write(fd, buffer, idx);
@@ -331,18 +329,12 @@ int llwrite(const unsigned char *buf, int bufSize) {
                 break;
         }
         alarmCount = 0;
-        nRetransmissions--;
+        nRepeated++;
 
     }
     return bytes;
 }
 
-/*
-    frameNumber == C -> accept -> send next RR -> frameNumber = RR
-    frameNumber != C -> discard -> send same RR
-    error -> frameNumber == C -> send REJ
-    error -> frameNumber != C -> send RR
-*/
 int sendDataResponse(int valid, unsigned char control) {
     unsigned char responseC;
     int accept = FALSE;
@@ -467,12 +459,12 @@ int llread(unsigned char *packet) {
 }
 
 int sendDISC() {
-    unsigned char disc[] = {FLAG_RCV, A_T, C_DISC, A_T ^ C_DISC, FLAG_RCV};
+    unsigned char disc[] = {FLAG_RCV, role == LlTx ? A_T : A_R, C_DISC, role == LlTx ? A_T : A_R ^ C_DISC, FLAG_RCV};
     int bytes = write(fd, disc, 5);
     if(bytes < 5) {
         return -1;
     }
-    printf("%d bytes written\n", bytes);
+    printf("%d bytes DISC written\n", bytes);
     return 0;
 }
 
@@ -480,27 +472,67 @@ int sendDISC() {
 // LLCLOSE
 ////////////////////////////////////////////////
 int llclose(int showStatistics) {
-    switch (role)
-    {
-    case LlTx:
-        /* 
-        send DISC 
-        receive DISC
-        send UA
-        */
-        break;
-    case LlRx:
-        /* 
-        receive DISC
-        send DISC
-        receive UA
-        */
-        break;
-    default:
-        break;
+    int stop = FALSE;
+    State state = START;
+    int index = 0;
+    unsigned char received[5] = {0};
+    unsigned char ua_reply[] = {FLAG_RCV, A_T, C_UA, A_T ^ C_UA, FLAG_RCV};
+    int nRepeated = 0;
+    
+    switch (role) {
+        case LlTx:
+            while(stop == FALSE && nRepeated < nRetransmissions) {
+                if(sendDISC() == -1) {
+                    return -1;
+                }
+                while(stop == FALSE && alarmCount < timout) {
+                    if (alarmEnabled == FALSE) {
+                        alarm(1); // Set alarm to be triggered in 1s
+                        alarmEnabled = TRUE;
+                    }
+                    stop = parseFrame(CLOSETX, &state, received, &index);
+                    printf("DISC received\n");
+                }
+                alarmCount = 0;
+                nRepeated++;
+            }
+            int bytes = write(fd, ua_reply, 5);
+            if(bytes < 5) {
+                return -1;
+            }
+            printf("%d bytes UA written\n", bytes);
+            break;
+        case LlRx:  
+            while (stop == FALSE) {
+                stop = parseFrame(CLOSERX, &state, received, &index);
+            }
+            if(sendDISC() == -1) {
+                return -1;
+            }
+            printf("DISC sent\n");
+            while (stop == FALSE)
+            {
+                while (stop == FALSE && alarmCount < timout) {
+                    if (alarmEnabled == FALSE) {
+                        alarm(1); // Set alarm to be triggered in 1s
+                        alarmEnabled = TRUE;
+                    }
+                    stop = parseFrame(RCV_UA, &state, received, &index); // RECEIVES UA
+                    printf("DISC received\n");
+                }
+                alarmCount = 0;
+            }
+            break;
+        default:
+            break;
     }
-    /*
-    close serial port
-    */
+
+    if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
+        perror("tcsetattr");
+        exit(-1);
+        }
+
+    close(fd);
+    
     return 1;
 }
