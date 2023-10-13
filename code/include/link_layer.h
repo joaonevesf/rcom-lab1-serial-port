@@ -21,6 +21,29 @@ typedef enum
     LlRx,
 } LinkLayerRole;
 
+typedef enum 
+{   
+    START, 
+    FLAG, 
+    A, 
+    C,
+    D,
+    DD, 
+    BCC,
+    BCC2,
+    STOP
+} State;
+
+typedef enum 
+{
+    OPENTX, 
+    OPENRX, 
+    WRITE, 
+    READ, 
+    CLOSETX,
+    CLOSERX
+} Action;
+
 typedef struct
 {
     char serialPort[50];
@@ -38,15 +61,28 @@ typedef struct
 #define FALSE 0
 #define TRUE 1
 
+// Handles the control field (buf) of a packet, depending on the act.
+// Return "1" on good field, "0" otherwise.
+int cHandler(Action act, unsigned char buf);
+
+// Parses a frame (control and supervision), writing it to received and updating index and state, depending on the act.
+// Return "1" on a complete packet, "0" otherwise
+int parseFrame(Action act, State* state, unsigned char* received, int* index);
+
 // Open a connection using the "port" parameters defined in struct linkLayer.
 // Return "1" on success or "-1" on error.
 int llopen(LinkLayer connectionParameters);
 
-int writeByte(const unsigned char* byte, unsigned char* buffer, int* idx);
+// Writes byte to buffer, escaping FLAG and ESC. Updates index to last open slot.
+void writeByte(const unsigned char* byte, unsigned char* buffer, int* idx);
 
 // Send data in buf with size bufSize.
 // Return number of chars written, or "-1" on error.
 int llwrite(const unsigned char *buf, int bufSize);
+
+// Send data response depending on valid packet and control field.
+// Return "1" to save packet, "0" to discard it and "-1" on write fail. 
+int sendDataResponse(int valid, unsigned char control);
 
 // Receive data in packet.
 // Return number of chars read, or "-1" on error.
