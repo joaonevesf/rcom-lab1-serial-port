@@ -264,7 +264,7 @@ int llwrite(const unsigned char *buf, int bufSize) {
     unsigned char control = frameNumber == 0 ? CI_0 : CI_1;
     unsigned char header[] = { FLAG_RCV, A_T, control, A_T ^ control};
     unsigned char buffer[bufSize * 2];
-    int idx = 5;
+    int idx = 4;
     
     memcpy(buffer, header, 4);
 
@@ -432,7 +432,6 @@ int llread(unsigned char *packet) {
                     unsigned char bcc2 = packet[0]; 
                     for(int i = 1; i < index; i++) {
                         bcc2 ^= packet[i];
-                        printf("%x ", packet[i]);
                     }
                     int accept = sendDataResponse(bcc2Received == bcc2, control);
                     if(accept == -1) {

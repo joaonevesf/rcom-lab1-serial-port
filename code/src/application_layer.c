@@ -39,7 +39,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     if(llclose(0)) {printf("Failed to close connection\n"); return;}
 
-    for(int i = 0; i < 9; i++)
+    for(int i = 0; i < 8; i++)
         printf("%x ", packet[i]);
 
 }
