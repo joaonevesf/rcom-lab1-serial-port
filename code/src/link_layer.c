@@ -313,7 +313,7 @@ int llwrite(const unsigned char *buf, int bufSize) {
             }
             good_packet = parseFrame(WRITE, &state, received, &index);
         }
-        int response_number = received[2] == RR0 ? 0 : 1;
+                int response_number = received[2] == RR0 ? 0 : 1;
         switch(received[2]){
             case RR0:
             case RR1:
@@ -433,7 +433,7 @@ int llread(unsigned char *packet) {
                     for(int i = 1; i < index; i++) {
                         bcc2 ^= packet[i];
                     }
-                    int accept = sendDataResponse(bcc2Received == bcc2, control);
+                    int accept = sendDataResponse(bcc2Received == bcc2, control == CI_0 ? 0 : 1);
                     if(accept == -1) {
                         return -1;
                     }
@@ -469,11 +469,6 @@ int sendDISC() {
     if(bytes < 5) {
         return -1;
     }
-    printf("SENDING DISC\n");
-    for(int i = 0; i < 5; i++) {
-        printf("%x ", disc[i]);
-    }
-    printf("\n");
     printf("%d bytes DISC written\n", bytes);
     return 0;
 }
@@ -537,7 +532,7 @@ int llclose(int showStatistics) {
                 }
                 alarmCount = 0;
             }
-            printf("DISC received\n");
+            printf("UA received\n");
             break;
         default:
             break;

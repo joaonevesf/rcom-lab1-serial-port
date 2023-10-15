@@ -9,6 +9,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 {
     // TODO
     unsigned char packet[9] = {0};
+    unsigned char packet2[9] = {0};
     unsigned char buff[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
     LinkLayer connectionParameters;
     strcpy(connectionParameters.serialPort, serialPort);
@@ -27,10 +28,12 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     {
     case LlTx:
         if(llwrite(buff, 8) < 8) {printf("Failed to write\n"); return;}
+        if(llwrite(buff, 8) < 8) {printf("Failed to write\n"); return;}
         break;
     
     case LlRx:
         if(llread(packet) < 8) {printf("Failed to read packet\n"); return;}
+        if(llread(packet2) < 8) {printf("Failed to read packet\n"); return;}
         break;
 
     default:
@@ -41,5 +44,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     for(int i = 0; i < 8; i++)
         printf("%x ", packet[i]);
+    printf("\n");
+    for(int i = 0; i < 8; i++)
+        printf("%x ", packet2[i]);
 
 }
