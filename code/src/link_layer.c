@@ -268,12 +268,9 @@ int llwrite(const unsigned char *buf, int bufSize) {
     
     memcpy(buffer, header, 4);
 
-    unsigned char bcc2 = buf[0];
-    
-    writeByte(&buf[0], buffer, &idx);
+    unsigned char bcc2 = 0;
 
-
-    int bytesWritten = 1;
+    int bytesWritten = 0;
     while(bytesWritten < bufSize) {
         bcc2 ^= buf[bytesWritten];
         writeByte(&buf[bytesWritten++], buffer, &idx);
@@ -379,6 +376,7 @@ int llread(unsigned char *packet) {
     State state = START;
     int stop = FALSE;
     int index = 0;
+    unsigned char bcc2 = 0;
     unsigned char buf;
     unsigned char control;
 
@@ -427,12 +425,8 @@ int llread(unsigned char *packet) {
             case D:
                 if(buf == FLAG_RCV) {
                     unsigned char bcc2Received = packet[--index];
+                    bcc2 ^= bcc2Received;
                     packet[index] = '\0';
-
-                    unsigned char bcc2 = packet[0]; 
-                    for(int i = 1; i < index; i++) {
-                        bcc2 ^= packet[i];
-                    }
                     int accept = sendDataResponse(bcc2Received == bcc2, control == CI_0 ? 0 : 1);
                     if(accept == -1) {
                         return -1;
@@ -448,10 +442,12 @@ int llread(unsigned char *packet) {
                     state = DD;
                 } else {
                     packet[index++] = buf;
+                    bcc2 ^= buf;
                 }
                 break;
             case DD:
                 packet[index++] = buf == 0x5e ? FLAG_RCV : ESC;
+                bcc2 ^= buf == 0x5e ? FLAG_RCV : ESC;
                 state = D;
                 break;
             default:
