@@ -289,15 +289,11 @@ int llwrite(const unsigned char *buf, int bufSize) {
 
         if(retransmission == TRUE) {
             bytes = write(fd, buffer, idx);
-            for(int i = 0; i < idx; i++) {
-                printf("%x ", buffer[i]);
-            }
-            printf("\n");
-            printf("%d bytes LLWRITE written\n", bytes);
-            if(bytes < idx) {
-                printf("iii\n");
-                return -1;
-            }
+            // for(int i = 0; i < idx; i++) {
+            //     printf("%x ", buffer[i]);
+            // }
+            // printf("\n");
+            // printf("%d bytes LLWRITE written\n", bytes);
         }
         unsigned char received[5] = {0};
         int index = 0;
@@ -365,6 +361,7 @@ int sendDataResponse(int valid, unsigned char control) {
         return -1;
     }
     printf("%d bytes DATA written\n", bytes);
+   // printf("Response: %x\n", responseC);
     return accept;
 }                      
     

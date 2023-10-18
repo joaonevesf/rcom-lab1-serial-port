@@ -84,7 +84,7 @@ int llwrite(const unsigned char *buf, int bufSize);
 // Return "1" to save packet, "0" to discard it and "-1" on write fail. 
 int sendDataResponse(int valid, unsigned char control);
 
-// Receive data in packet.
+// Receive data in packet. Packet must be allocated with 1 extra byte for bcc reading.
 // Return number of chars read, or "-1" on error.
 int llread(unsigned char *packet);
 
