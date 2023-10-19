@@ -333,9 +333,11 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     switch (connectionParameters.role) {
         case LlTx:
             applicationWrite(filename);
+            break;
         
         case LlRx:
             applicationRead(filename);
+            break;
 
         default:
             break;
