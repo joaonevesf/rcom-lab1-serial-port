@@ -11,57 +11,7 @@
 #define FILE_SIZE_T 0x00
 #define FILE_NAME_T 0x01
 
-/*
-packet size = 256 bytes?
-
-C = 1 -> data packet
-C = 2 -> start packet
-C = 3 -> end packet
-L2*256 + L1 -> number of bytes
-P -> packets
-
-for(...n) data / n -> data packet
-
-data packet = {C, L2, L1, P1, P2, ..., Pn}
-
-llwrite(data packet, 3 + L2*256 + L1);
-
-llread(data packet);
-
-interpretar com switch case 
-
-
-T = 0 -> file size
-T = 1 -> file name
-
-L -> number of bytes of V
-V -> value
-
-control packet = {C, T1, L1, V1, T2, L2, V2}
-
-llwrite(control packet, 5 + L1 + L2);
-
-llread(data packet);
-
-interpretar com switch case 
-
-
-Ler ficheiro
-Dividir ficheiro em packets
-llopen()
-llwrite(control packet) -> Start
-for(i to n) llwrite(data packet)
-llwrite(control packet) -> End
-llclose()
----------------------------------
-llopen()
-llread(control packet) -> Start
-Criar espaço para ficheiro
-for(i to n) llread(data packet)
-llread(control packet) -> End
-llclose()
-
-*/
+extern int DEBUG;
 
 int applicationWrite(const char *filename) {
     FILE *file = fopen(filename, "r");
@@ -103,12 +53,13 @@ int applicationWrite(const char *filename) {
         controlPacket[fileSizeBytes + 5 + i] = filename[i];
     }
     
-    printf("Printing control packet:\n");
-    for(int i = 0; i < 5 + fileSizeBytes + nameSize; i++) {
-        printf("0x%x ", controlPacket[i]);
+    if(DEBUG){
+        printf("Printing control packet:\n");
+        for(int i = 0; i < 5 + fileSizeBytes + nameSize; i++) {
+            printf("0x%x ", controlPacket[i]);
+        }
+        printf("\n");  
     }
-    printf("\n");  
-
     if(llwrite(controlPacket, 5 + fileSizeBytes + nameSize) < 5 + fileSizeBytes + nameSize) {
         printf("Failed to send control packet\n");
         return 1;
@@ -129,7 +80,7 @@ int applicationWrite(const char *filename) {
     while(nPackets--) {
         for(int i = 0; i < PACKET_SIZE; i++) {
             dataPacket[3 + i] = fgetc(file);
-            if(dataPacket[3 + i] == EOF || dataPacket[3 + i] == 0xFF) {
+            if(dataPacket[3 + i] == EOF) {
                 dataPacket[1] = (i >> 8) & 0xFF;
                 dataPacket[2] = i & 0xFF;
                 if(llwrite(dataPacket, 3 + i) < 3 + i) {
@@ -150,12 +101,7 @@ int applicationWrite(const char *filename) {
             printf("Failed to send data packet\n");
             return 1;
         }
-        // print data packet
-        printf("Printing data packet %ld:\n", nPacket);
-        for(int i = 0; i < PACKET_SIZE + 3; i++) {
-            printf("0x%x ", dataPacket[i]);
-        }
-        printf("\n");
+        if(DEBUG) printf("Data packet %ld \n", nPacket);
 
         nPacket++;
     }
@@ -184,14 +130,15 @@ int applicationRead(const char *filename) {
     int bytes = llread(controlPacket);
     if(bytes < 7) {
         printf("Failed to receive control packet\n");
-        return 1;
+        return 1;   
     }
 
-    printf("Printing control packet:\n");
-    for(int i = 0; i < bytes; i++) {
-        printf("0x%x ", controlPacket[i]);
-    }
-    printf("\n");  
+    if(DEBUG){
+        printf("Printing control packet:\n");
+        for(int i = 0; i < bytes; i++) {
+            printf("0x%x ", controlPacket[i]);
+        }
+        printf("\n");}  
 
     if(controlPacket[0] != CONTROL_START) {
         printf("Invalid control packet: Start was 0x%x\n", controlPacket[0]);
@@ -206,9 +153,9 @@ int applicationRead(const char *filename) {
     }
 
     for(int i = 0; i < controlPacket[2]; i++) {
-        fileSize = fileSize << 8;
-        fileSize += controlPacket[3 + i];
+        fileSize += (controlPacket[3 + i] << (8*i));
     }
+    if(DEBUG) printf("filesize: %ld\n",fileSize);
 
     if(controlPacket[3 + controlPacket[2]] != FILE_NAME_T) {
         printf("Invalid control packet: File name type was 0x%x\n", controlPacket[3 + controlPacket[2]]);
@@ -223,7 +170,7 @@ int applicationRead(const char *filename) {
     
     long nPackets = ((fileSize + PACKET_SIZE) / PACKET_SIZE);
     long aux = nPackets;
-    printf("nPackets: %ld\n", nPackets);
+    if(DEBUG) printf("nPackets: %ld\n", nPackets);
 
     unsigned char* dataPacket = malloc(PACKET_SIZE + 3 +1); 
     
@@ -235,17 +182,12 @@ int applicationRead(const char *filename) {
         }
 
         if(dataPacket[0] != CONTROL_DATA) {
-            printf("Invalid data packet\n");
+            printf("Invalid data packet, byte 0:%x\n", dataPacket[0]);
             return 1;
         }
         int packetSize = (dataPacket[1] << 8) + dataPacket[2];
-
-        // print data packet
-        printf("Printing data packet %ld:\n", aux - nPackets - 1);
-        for(int i = 0; i < packetSize + 3; i++) {
-            printf("0x%x ", dataPacket[i]);
-        }
-        printf("\n");
+        
+        if(DEBUG) printf("Data packet %ld\n", aux - nPackets - 1);
 
         for(int i = 0; i < packetSize; i++) {
             fputc(dataPacket[3 + i], file);
@@ -265,14 +207,13 @@ int applicationRead(const char *filename) {
     }
 
     if(controlPacket[1] != FILE_SIZE_T) {
-        printf("Invalid control packet- Filze size t was 0x%x\n", controlPacket[1]);
+        printf("Invalid control packet- File size t was 0x%x\n", controlPacket[1]);
         return 1;
     }
 
     long fileSize2 = 0;
     for(int i = 0; i < controlPacket[2]; i++) {
-        fileSize2 = fileSize2 << 8;
-        fileSize2 += controlPacket[3 + i];
+        fileSize2 += (controlPacket[3 + i] << (8*i));
     }
 
     if(fileSize != fileSize2) {
@@ -299,7 +240,7 @@ int applicationRead(const char *filename) {
         }
     }
 
-    printf("\nFile with name %s and size %ld received to %s\n", name, fileSize, filename);
+    if(DEBUG) printf("\nFile with name %s and size %ld received and named %s\n", name, fileSize, filename);
 
     fclose(file);
 
@@ -343,7 +284,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             break;
     }
 
-    if(llclose(0)) {
+    if(llclose(TRUE)) {
         printf("Failed to close connection\n"); 
         return;
     }
