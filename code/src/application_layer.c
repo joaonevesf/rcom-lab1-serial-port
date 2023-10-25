@@ -122,7 +122,7 @@ int applicationRead(const char *filename) {
         return 1;
     }
 
-    unsigned char controlPacket[500] = {0};
+    unsigned char controlPacket[517] = {0}; // 5 + 2⁸ * 2
 
     int bytes = llread(controlPacket);
     if(bytes < 7) {
@@ -190,7 +190,7 @@ int applicationRead(const char *filename) {
         
     }
 
-    memset(controlPacket, 0, 500);
+    memset(controlPacket, 0, 517);
 
     if(llread(controlPacket) < 7) {
         printf("Failed to receive control packet\n");
