@@ -17,6 +17,7 @@
 #define CI_0 0x00
 #define CI_1 0x40
 #define ESC 0x7D
+#define ESC_XOR 0x20
 #define RR0 0x05
 #define RR1 0x85
 #define REJ0 0x01
@@ -496,8 +497,8 @@ int llread(unsigned char *packet) {
                 }
                 break;
             case DD:
-                packet[index++] = buf == 0x5e ? FLAG_RCV : ESC;
-                bcc2 ^= buf == 0x5e ? FLAG_RCV : ESC;
+                packet[index++] = buf ^ ESC_XOR;
+                bcc2 ^= buf ^ ESC_XOR;
                 state = D;
                 break;
             default:
