@@ -69,7 +69,7 @@ int applicationWrite(const char *filename) {
 //------------------------------------------------------
     
     // Data Packet -> 0x01 / byte 1 of nº of bytes / byte 2 of nº of bytes / packets...
-    unsigned char* dataPacket = malloc(PACKET_SIZE + 3);
+    unsigned char dataPacket [PACKET_SIZE + 3];
     
     dataPacket[0] = CONTROL_DATA;
     dataPacket[1] = (PACKET_SIZE >> 8) & 0xFF;
@@ -92,7 +92,6 @@ int applicationWrite(const char *filename) {
                     return 1;
                 }
                 free(controlPacket);
-                free(dataPacket);
                 fclose(file);
                 return 0;
             }
@@ -112,7 +111,6 @@ int applicationWrite(const char *filename) {
     }
     fclose(file);
     free(controlPacket);
-    free(dataPacket);
     return 0;
 }
 
@@ -124,8 +122,7 @@ int applicationRead(const char *filename) {
         return 1;
     }
 
-    unsigned char* controlPacket = malloc(500);
-    memset(controlPacket, 0, 500);
+    unsigned char controlPacket[500] = {0};
 
     int bytes = llread(controlPacket);
     if(bytes < 7) {
@@ -172,7 +169,7 @@ int applicationRead(const char *filename) {
     long aux = nPackets;
     if(DEBUG) printf("nPackets: %ld\n", nPackets);
 
-    unsigned char* dataPacket = malloc(PACKET_SIZE + 3 +1); 
+    unsigned char dataPacket [PACKET_SIZE + 3 +1]; 
     
     while(nPackets--) {
         if(llread(dataPacket) < 3) {
@@ -189,9 +186,8 @@ int applicationRead(const char *filename) {
         
         if(DEBUG) printf("Data packet %ld\n", aux - nPackets - 1);
 
-        for(int i = 0; i < packetSize; i++) {
-            fputc(dataPacket[3 + i], file);
-        }
+        fwrite(dataPacket + 3, 1, packetSize, file);
+        
     }
 
     memset(controlPacket, 0, 500);
@@ -245,8 +241,6 @@ int applicationRead(const char *filename) {
     fclose(file);
 
     free(name);
-    free(dataPacket);
-    free(controlPacket);
 
     return 0;
 }
