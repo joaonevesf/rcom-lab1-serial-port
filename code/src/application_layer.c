@@ -79,8 +79,9 @@ int applicationWrite(const char *filename) {
 
     while(nPackets--) {
         for(int i = 0; i < PACKET_SIZE; i++) {
-            dataPacket[3 + i] = fgetc(file);
-            if(dataPacket[3 + i] == EOF) {
+            int byte = fgetc(file);
+            dataPacket[3 + i] = (unsigned char) byte;
+            if(byte == EOF) {
                 dataPacket[1] = (i >> 8) & 0xFF;
                 dataPacket[2] = i & 0xFF;
                 if(llwrite(dataPacket, 3 + i) < 3 + i) {
