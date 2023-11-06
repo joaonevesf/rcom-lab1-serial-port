@@ -44,10 +44,10 @@ int errorsSent = 0;
 int errorsReceived = 0;
 
 
-int DEBUG = TRUE;
+int DEBUG = FALSE;
 
 
-int SIM_ERROR = TRUE;
+int SIM_ERROR = FALSE;
 int ERROR_RATE = 10; // % error rate (0-100)
 
 
@@ -312,7 +312,7 @@ int llwrite(const unsigned char *buf, int bufSize) {
     int nRepeated = 0;
     int error;
     
-    while(stop == FALSE && nRepeated < nRetransmissions) {
+    while(stop == FALSE && nRepeated <= nRetransmissions) {
 
         if(retransmission == TRUE) {
             // simulate error
@@ -325,6 +325,7 @@ int llwrite(const unsigned char *buf, int bufSize) {
                 }
             }
             bytes = write(fd, buffer, idx);
+            nRepeated++;
             if(SIM_ERROR && error < ERROR_RATE * 100) {
                 buffer[4] = buffer[4] ^ 0xFF; // undo flip           
             }
@@ -357,24 +358,26 @@ int llwrite(const unsigned char *buf, int bufSize) {
                 }
                 else {
                     retransmission = FALSE;
+                    nRepeated = 0;
                 }
                 break;
             case REJ0:
                 retransmission = frameNumber == 0 ? TRUE : FALSE;
                 if(DEBUG) printf("REJ0 received retransmission: %d\n", retransmission);
+                nRepeated = 0;
                 break;
             case REJ1:
                 retransmission = frameNumber == 1 ? TRUE : FALSE;
                 if(DEBUG) printf("REJ1 received, retransmission: %d\n", retransmission);
+                nRepeated = 0;
                 break;
             default:
                 break;
         }
         alarmCount = 0;
-        nRepeated++;
 
     }
-    if(nRepeated == nRetransmissions) {
+    if(nRepeated >= nRetransmissions) {
         printf("Error sending frame due to max number of retransmissions\n");
         return -1;
     }
@@ -589,8 +592,8 @@ int llclose(int showStatistics) {
     if(showStatistics) {
         printf("Error frames sent: %d\n", errorsSent);
         printf("Error frames received: %d\n", errorsReceived);
-        printf("C: %f bit/s\n", (bytesSent*8 / time_spent));
-        printf("R: %f bit/s\n", (bytesReceived*8 / time_spent));
+        printf("Rate of Bytes Sent: %f bit/s\n", (bytesSent*8 / time_spent));
+        printf("Rate of Bytes Received: %f bit/s\n", (bytesReceived*8 / time_spent));
         printf("Time elapsed: %f\n", time_spent);
     }
 
