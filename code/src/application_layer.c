@@ -12,6 +12,7 @@
 #define FILE_NAME_T 0x01
 
 extern int DEBUG;
+long globalFileSize = 0;
 
 int applicationWrite(const char *filename) {
     FILE *file = fopen(filename, "r");
@@ -24,6 +25,7 @@ int applicationWrite(const char *filename) {
     fseek(file, 0, SEEK_END);
 
     long fileSize = ftell(file);
+    globalFileSize = fileSize;
 
     fseek(file, 0, SEEK_SET);
 
@@ -154,6 +156,7 @@ int applicationRead(const char *filename) {
         fileSize += (controlPacket[3 + i] << (8*i));
     }
     if(DEBUG) printf("filesize: %ld\n",fileSize);
+    globalFileSize = fileSize;
 
     if(controlPacket[3 + controlPacket[2]] != FILE_NAME_T) {
         printf("Invalid control packet: File name type was 0x%x\n", controlPacket[3 + controlPacket[2]]);
@@ -265,6 +268,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         printf("Failed to open connection\n");
         return;
     }
+
+    clock_t start = clock();
     
     switch (connectionParameters.role) {
         case LlTx:
@@ -279,10 +284,16 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             break;
     }
 
+    clock_t end = clock();
+
     if(llclose(TRUE)) {
         printf("Failed to close connection\n"); 
         return;
     }
+
+    printf("Time elapsed: %f\n", (double)(end - start) / CLOCKS_PER_SEC);
+    double bitRate = (double) globalFileSize / (double)(end - start) * CLOCKS_PER_SEC;
+    printf("Bitrate: %f\n", bitRate);
 
     return;
 

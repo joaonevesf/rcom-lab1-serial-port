@@ -592,9 +592,9 @@ int llclose(int showStatistics) {
     if(showStatistics) {
         printf("Error frames sent: %d\n", errorsSent);
         printf("Error frames received: %d\n", errorsReceived);
-        printf("Rate of Bytes Sent: %f bit/s\n", (bytesSent*8 / time_spent));
-        printf("Rate of Bytes Received: %f bit/s\n", (bytesReceived*8 / time_spent));
-        printf("Time elapsed: %f\n", time_spent);
+        // printf("Rate of Bytes Sent: %f bit/s\n", (bytesSent*8 / time_spent));
+        // printf("Rate of Bytes Received: %f bit/s\n", (bytesReceived*8 / time_spent));
+        // printf("Time elapsed: %f\n", time_spent);
     }
 
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
