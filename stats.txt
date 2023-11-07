@@ -57,3 +57,23 @@ FER 40%
 ime elapsed: 22.436842
 Bitrate: 488.838848
 
+T PROP
+---------------------------
+
+#T_PROP 0.1
+Time elapsed: 13.210506
+Bitrate: 830.248289
+
+# T_PROP 0.25
+Time elapsed: 13.275369
+Bitrate: 826.191724
+
+
+# T_PROP 0.5
+Time elapsed: 13.203443
+Bitrate: 830.692419
+
+# T_PROP 1
+Time elapsed: 13.262112
+Bitrate: 827.017597
+
