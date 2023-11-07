@@ -2,6 +2,11 @@ BR 6000
 Time elapsed: 15.013909
 Bitrate: 730.522611
 
+-----------------------
+BAUDRATE 2400
+Time elapsed: 14.565761
+Bitrate: 752.998762
+
 
 BR 8000
 Time elapsed: 15.014347
@@ -19,6 +24,17 @@ BR 14000
 Time elapsed: 12.522729
 Bitrate: 875.847429
 
+BAUDRATE 38600
+Time elapsed: 13.353057
+Bitrate: 821.384946
+
+BAUDRATE 115200
+Time elapsed: 12.149927
+Bitrate: 902.721473
+
+BAUDRATE 256000
+Time elapsed: 12.151274
+Bitrate: 902.621404
 
 PACKET SIZE
 -----------------
