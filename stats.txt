@@ -1,95 +1,93 @@
+CONTROL
+------------------------
 BR 6000
 Time elapsed: 15.013909
-Bitrate: 730.522611
+Bitrate: 5844.181
 
+BAUDRATE
 -----------------------
 BAUDRATE 2400
 Time elapsed: 14.565761
-Bitrate: 752.998762
-
+Bitrate: 6023.990
 
 BR 8000
 Time elapsed: 15.014347
-Bitrate: 730.501300
+Bitrate: 5844.010
 
 BR 10000
 Time elapsed: 13.774104
-Bitrate: 796.276839
+Bitrate: 6370.214
 
 BR 12000
 Time elapsed: 13.762885
-Bitrate: 796.925935
+Bitrate: 6375.448
 
 BR 14000
 Time elapsed: 12.522729
-Bitrate: 875.847429
+Bitrate: 7006.779
 
 BAUDRATE 38600
 Time elapsed: 13.353057
-Bitrate: 821.384946
+Bitrate: 6571.080
 
 BAUDRATE 115200
 Time elapsed: 12.149927
-Bitrate: 902.721473
+Bitrate: 7221.771
 
 BAUDRATE 256000
 Time elapsed: 12.151274
-Bitrate: 902.621404
+Bitrate: 7220.971
 
 PACKET SIZE
 -----------------
 PS 128
 Time elapsed: 14.751256
-Bitrate: 743.5299074
+Bitrate: 5948.239
 
 PS 192
 Time elapsed: 14.144861
-Bitrate: 775.405287
+Bitrate: 6203.242
 
 PS 320
 Time elapsed: 13.563178
-Bitrate: 808.660035
+Bitrate: 6468.480
 
 PS 384
 Time elapsed: 13.408285
-Bitrate: 818.001706
+Bitrate: 6544.014
 
-
-FRAME ERRROR RATE
+FRAME ERROR RATE
 -----------
 FER 5%
 Time elapsed: 14.730805
-Bitrate: 744.562161
+Bitrate: 5956.496
 
 FER 10%
 Time elapsed: 15.366808
-Bitrate: 713.746147
+Bitrate: 5709.969
 
 FER 20%
 Time elapsed: 16.327363
-Bitrate: 671.755751
+Bitrate: 5374.046
 
 FER 40%
-ime elapsed: 22.436842
-Bitrate: 488.838848
+Time elapsed: 22.436842
+Bitrate: 3910.710
 
 T PROP
 ---------------------------
-
-#T_PROP 0.1
+T_PROP 0.1
 Time elapsed: 13.210506
-Bitrate: 830.248289
+Bitrate: 6641.986
 
-# T_PROP 0.25
+T_PROP 0.25
 Time elapsed: 13.275369
-Bitrate: 826.191724
+Bitrate: 6609.734
 
-
-# T_PROP 0.5
+T_PROP 0.5
 Time elapsed: 13.203443
-Bitrate: 830.692419
+Bitrate: 6645.538
 
-# T_PROP 1
+T_PROP 1
 Time elapsed: 13.262112
-Bitrate: 827.017597
-
+Bitrate: 6616.140
