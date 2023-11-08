@@ -37,9 +37,6 @@ int nRetransmissions = 0;
 LinkLayerRole role;
 
 
-clock_t start;
-long bytesSent = 0;
-long bytesReceived = 0;
 int errorsSent = 0;
 int errorsReceived = 0;
 
@@ -88,7 +85,7 @@ int parseFrame(Action act, State* state, unsigned char* received, int* index) {
     if(bytes < 1) {
         return stop;
     }
-    bytesReceived += bytes;
+
     switch(*state) {
         case START: 
             if(buf == FLAG_RCV) {
@@ -224,7 +221,6 @@ int llopen(LinkLayer connectionParameters) {
                     printf("Error writing SET\n");
                     return -1;
                 }
-                bytesSent += byte1;
                 if(DEBUG) printf("%d bytes written (SET)\n", byte1);
 
                 while (stop == FALSE && alarmCount < timout) {
@@ -256,7 +252,6 @@ int llopen(LinkLayer connectionParameters) {
                 printf("Error writing UA\n");
                 return -1;
             }
-            bytesSent += 5;
             break;
 
 
@@ -264,7 +259,6 @@ int llopen(LinkLayer connectionParameters) {
             break;
     }
 
-    start = clock();
 
     return 0;
 }
@@ -333,7 +327,6 @@ int llwrite(const unsigned char *buf, int bufSize) {
                 printf("Error writing DATA\n");
                 return -1;
             }
-            bytesSent += bytes;
         }
         unsigned char received[5] = {0};
         int index = 0;
@@ -415,7 +408,6 @@ int sendDataResponse(int valid, unsigned char control) {
         printf("Error writing response\n");
         return -1;
     }
-    bytesSent += bytes;
     if(DEBUG) printf("%d bytes data response written\n", bytes);
     return accept;
 }                      
@@ -436,7 +428,6 @@ int llread(unsigned char *packet) {
 
         int bytes = read(fd, &buf, 1);
         if(bytes < 1) continue;
-        bytesReceived += bytes;
 
         switch (state) {
             case START: 
@@ -516,7 +507,6 @@ int llread(unsigned char *packet) {
 int sendDISC() {
     unsigned char disc[] = {FLAG_RCV, role == LlTx ? A_T : A_R, C_DISC,(role == LlTx ? A_T : A_R) ^ C_DISC, FLAG_RCV};
     int bytes = write(fd, disc, 5);
-    bytesSent += bytes;
     if(bytes < 5) {
         printf("Error writing DISC\n");
         return -1;
@@ -558,7 +548,6 @@ int llclose(int showStatistics) {
                     printf("Error writing UA\n");
                     return -1;
                 }
-                bytesSent += 5;
             }
             break;
         case LlRx:  
@@ -586,15 +575,9 @@ int llclose(int showStatistics) {
             break;
     }
 
-    clock_t end = clock();
-    double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
-
     if(showStatistics) {
         printf("Error frames sent: %d\n", errorsSent);
         printf("Error frames received: %d\n", errorsReceived);
-        // printf("Rate of Bytes Sent: %f bit/s\n", (bytesSent*8 / time_spent));
-        // printf("Rate of Bytes Received: %f bit/s\n", (bytesReceived*8 / time_spent));
-        // printf("Time elapsed: %f\n", time_spent);
     }
 
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
