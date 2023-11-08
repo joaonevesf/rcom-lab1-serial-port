@@ -1,0 +1,95 @@
+BR 6000
+Time elapsed: 15.013909
+Bitrate: 730.522611
+
+-----------------------
+BAUDRATE 2400
+Time elapsed: 14.565761
+Bitrate: 752.998762
+
+
+BR 8000
+Time elapsed: 15.014347
+Bitrate: 730.501300
+
+BR 10000
+Time elapsed: 13.774104
+Bitrate: 796.276839
+
+BR 12000
+Time elapsed: 13.762885
+Bitrate: 796.925935
+
+BR 14000
+Time elapsed: 12.522729
+Bitrate: 875.847429
+
+BAUDRATE 38600
+Time elapsed: 13.353057
+Bitrate: 821.384946
+
+BAUDRATE 115200
+Time elapsed: 12.149927
+Bitrate: 902.721473
+
+BAUDRATE 256000
+Time elapsed: 12.151274
+Bitrate: 902.621404
+
+PACKET SIZE
+-----------------
+PS 128
+Time elapsed: 14.751256
+Bitrate: 743.5299074
+
+PS 192
+Time elapsed: 14.144861
+Bitrate: 775.405287
+
+PS 320
+Time elapsed: 13.563178
+Bitrate: 808.660035
+
+PS 384
+Time elapsed: 13.408285
+Bitrate: 818.001706
+
+
+FRAME ERRROR RATE
+-----------
+FER 5%
+Time elapsed: 14.730805
+Bitrate: 744.562161
+
+FER 10%
+Time elapsed: 15.366808
+Bitrate: 713.746147
+
+FER 20%
+Time elapsed: 16.327363
+Bitrate: 671.755751
+
+FER 40%
+ime elapsed: 22.436842
+Bitrate: 488.838848
+
+T PROP
+---------------------------
+
+#T_PROP 0.1
+Time elapsed: 13.210506
+Bitrate: 830.248289
+
+# T_PROP 0.25
+Time elapsed: 13.275369
+Bitrate: 826.191724
+
+
+# T_PROP 0.5
+Time elapsed: 13.203443
+Bitrate: 830.692419
+
+# T_PROP 1
+Time elapsed: 13.262112
+Bitrate: 827.017597
+

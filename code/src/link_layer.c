@@ -17,6 +17,7 @@
 #define CI_0 0x00
 #define CI_1 0x40
 #define ESC 0x7D
+#define ESC_XOR 0x20
 #define RR0 0x05
 #define RR1 0x85
 #define REJ0 0x01
@@ -35,11 +36,26 @@ int timout = 0;
 int nRetransmissions = 0; 
 LinkLayerRole role;
 
+
+clock_t start;
+long bytesSent = 0;
+long bytesReceived = 0;
+int errorsSent = 0;
+int errorsReceived = 0;
+
+
+int DEBUG = FALSE;
+
+
+int SIM_ERROR = FALSE;
+int ERROR_RATE = 10; // % error rate (0-100)
+
+
 // Alarm function handler
 void alarmHandler(int signal) {
     alarmEnabled = FALSE;
     alarmCount++;
-    printf("Alarm triggered, #%d\n", alarmCount);
+    if(DEBUG) printf("Alarm triggered, #%d\n", alarmCount);
 }
 
 int cHandler(Action act, unsigned char buf) {
@@ -69,7 +85,10 @@ int parseFrame(Action act, State* state, unsigned char* received, int* index) {
     int stop = FALSE;
     unsigned char buf;
     int bytes = read(fd, &buf, 1);
-    if(bytes < 1) return stop;
+    if(bytes < 1) {
+        return stop;
+    }
+    bytesReceived += bytes;
     switch(*state) {
         case START: 
             if(buf == FLAG_RCV) {
@@ -194,14 +213,19 @@ int llopen(LinkLayer connectionParameters) {
     unsigned char set_command[] = {FLAG_RCV, A_T, C_SET, A_T ^ C_SET, FLAG_RCV};
     unsigned char ua_reply[] = {FLAG_RCV, A_T, C_UA, A_T ^ C_UA, FLAG_RCV};
     int nRepeated = 0;
-
+    
     switch (role) {
         case LlTx:
 
             while(stop == FALSE && nRepeated < nRetransmissions) {
 
                 int byte1 = write(fd, set_command, 5);
-                printf("%d bytes written (SET)\n", byte1);
+                if(byte1 < 5) {
+                    printf("Error writing SET\n");
+                    return -1;
+                }
+                bytesSent += byte1;
+                if(DEBUG) printf("%d bytes written (SET)\n", byte1);
 
                 while (stop == FALSE && alarmCount < timout) {
                     if (alarmEnabled == FALSE) {
@@ -215,8 +239,10 @@ int llopen(LinkLayer connectionParameters) {
                 alarmCount = 0;
                 nRepeated++;
             }
-            if(stop  == FALSE) return -1;
-            printf("UA received\n");
+            if(stop  == FALSE) {
+                printf("Error receiving UA\n");
+                return -1;
+            }
             break;
         
 
@@ -226,12 +252,11 @@ int llopen(LinkLayer connectionParameters) {
                 stop = parseFrame(RCV_SET, &state, received, &index);
             }
 
-            printf("Flag received\n");
-
-
-            int bytes = write(fd, ua_reply, 5);
-            printf("%d bytes written (UA)\n", bytes);
-
+            if(write(fd, ua_reply, 5) < 5) {
+                printf("Error writing UA\n");
+                return -1;
+            }
+            bytesSent += 5;
             break;
 
 
@@ -239,6 +264,7 @@ int llopen(LinkLayer connectionParameters) {
             break;
     }
 
+    start = clock();
 
     return 0;
 }
@@ -284,25 +310,36 @@ int llwrite(const unsigned char *buf, int bufSize) {
     int retransmission = TRUE;
     State state = START;
     int nRepeated = 0;
+    int error;
     
-    while(stop == FALSE && nRepeated < nRetransmissions) {
+    while(stop == FALSE && nRepeated <= nRetransmissions) {
 
         if(retransmission == TRUE) {
-            bytes = write(fd, buffer, idx);
-            for(int i = 0; i < idx; i++) {
-                printf("%x ", buffer[i]);
+            // simulate error
+            if(SIM_ERROR) {
+                error = rand() % 10000;
+                if(error < ERROR_RATE * 100) {
+                    if(DEBUG) printf("Simulating error on frame number %d...\n", frameNumber);
+                    errorsSent++;
+                    buffer[4] = buffer[4] ^ 0xFF; // flips a byte
+                }
             }
-            printf("\n");
-            printf("%d bytes LLWRITE written\n", bytes);
+            bytes = write(fd, buffer, idx);
+            nRepeated++;
+            if(SIM_ERROR && error < ERROR_RATE * 100) {
+                buffer[4] = buffer[4] ^ 0xFF; // undo flip           
+            }
             if(bytes < idx) {
-                printf("iii\n");
+                printf("Error writing DATA\n");
                 return -1;
             }
+            bytesSent += bytes;
         }
         unsigned char received[5] = {0};
         int index = 0;
         good_packet = FALSE;
-    
+        state = START;
+
         while (good_packet == FALSE && alarmCount < timout) {
             if (alarmEnabled == FALSE) {
                 alarm(1);
@@ -310,30 +347,39 @@ int llwrite(const unsigned char *buf, int bufSize) {
             }
             good_packet = parseFrame(WRITE, &state, received, &index);
         }
-                int response_number = received[2] == RR0 ? 0 : 1;
+        int response_number = received[2] == RR0 ? 0 : 1;
         switch(received[2]){
             case RR0:
             case RR1:
-                if(frameNumber != response_number) { 
+                if(DEBUG) printf("RR%d received\n", response_number);
+                if(frameNumber != response_number) {
                     frameNumber = response_number;
                     stop = TRUE;
                 }
                 else {
                     retransmission = FALSE;
+                    nRepeated = 0;
                 }
                 break;
             case REJ0:
                 retransmission = frameNumber == 0 ? TRUE : FALSE;
+                if(DEBUG) printf("REJ0 received retransmission: %d\n", retransmission);
+                nRepeated = 0;
                 break;
             case REJ1:
                 retransmission = frameNumber == 1 ? TRUE : FALSE;
+                if(DEBUG) printf("REJ1 received, retransmission: %d\n", retransmission);
+                nRepeated = 0;
                 break;
             default:
                 break;
         }
         alarmCount = 0;
-        nRepeated++;
 
+    }
+    if(nRepeated >= nRetransmissions) {
+        printf("Error sending frame due to max number of retransmissions\n");
+        return -1;
     }
     return bytes;
 }
@@ -350,21 +396,27 @@ int sendDataResponse(int valid, unsigned char control) {
             responseC = frameNumber == 0 ? RR0 : RR1;
             accept = FALSE;
         }
+        if(DEBUG) printf("packet received, RR%d sent\n", responseC == RR0 ? 0 : 1);
     } else {
         if(control == frameNumber) {
+            if(DEBUG) printf("error received, REJ%d sent\n", frameNumber);
             responseC = frameNumber == 0 ? REJ0 : REJ1;
             accept = FALSE;
         } else {
+            if(DEBUG) printf("error received, RR%d sent\n", frameNumber);
             responseC = frameNumber == 0 ? RR0 : RR1;
             accept = FALSE;
         }
+        errorsReceived++;
     }
     unsigned char response[] = {FLAG_RCV, A_T, responseC, A_T ^ responseC, FLAG_RCV};
     int bytes = write(fd, response, 5);
     if(bytes < 5) {
+        printf("Error writing response\n");
         return -1;
     }
-    printf("%d bytes DATA written\n", bytes);
+    bytesSent += bytes;
+    if(DEBUG) printf("%d bytes data response written\n", bytes);
     return accept;
 }                      
     
@@ -383,7 +435,8 @@ int llread(unsigned char *packet) {
     while(stop == FALSE) {
 
         int bytes = read(fd, &buf, 1);
-        if(bytes <= 0) continue;
+        if(bytes < 1) continue;
+        bytesReceived += bytes;
 
         switch (state) {
             case START: 
@@ -437,6 +490,7 @@ int llread(unsigned char *packet) {
                     else {
                         state = START;
                         index = 0;
+                        bcc2 = 0;
                     }   
                 } else if (buf == ESC) {
                     state = DD;
@@ -446,8 +500,8 @@ int llread(unsigned char *packet) {
                 }
                 break;
             case DD:
-                packet[index++] = buf == 0x5e ? FLAG_RCV : ESC;
-                bcc2 ^= buf == 0x5e ? FLAG_RCV : ESC;
+                packet[index++] = buf ^ ESC_XOR;
+                bcc2 ^= buf ^ ESC_XOR;
                 state = D;
                 break;
             default:
@@ -462,10 +516,12 @@ int llread(unsigned char *packet) {
 int sendDISC() {
     unsigned char disc[] = {FLAG_RCV, role == LlTx ? A_T : A_R, C_DISC,(role == LlTx ? A_T : A_R) ^ C_DISC, FLAG_RCV};
     int bytes = write(fd, disc, 5);
+    bytesSent += bytes;
     if(bytes < 5) {
+        printf("Error writing DISC\n");
         return -1;
     }
-    printf("%d bytes DISC written\n", bytes);
+    if(DEBUG) printf("%d bytes DISC written\n", bytes);
     return 0;
 }
 
@@ -483,6 +539,7 @@ int llclose(int showStatistics) {
         case LlTx:
             while(stop == FALSE) {
                 if(sendDISC() == -1) {
+                    printf("Error sending DISC\n");
                     return -1;
                 }
                 while(stop == FALSE && alarmCount < timout) {
@@ -492,21 +549,16 @@ int llclose(int showStatistics) {
                     }
                     stop = parseFrame(CLOSETX, &state, received, &index);
                 }
-                // print current received
-                for (size_t i = 0; i < 5; i++) {
-                    printf("%x ", received[i]);
-                }
-                printf("\n");
                 
                 alarmCount = 0;
             }
             if(stop == TRUE){
-                printf("DISC received\n");
-                int bytes = write(fd, ua_reply, 5);
-                if(bytes < 5) {
+                if(DEBUG) printf("DISC received\n");
+                if(write(fd, ua_reply, 5) < 5) {
+                    printf("Error writing UA\n");
                     return -1;
                 }
-                printf("%d bytes UA written\n", bytes);
+                bytesSent += 5;
             }
             break;
         case LlRx:  
@@ -517,6 +569,7 @@ int llclose(int showStatistics) {
             while (stop == FALSE)
             {
                 if(sendDISC() == -1) {
+                    printf("Error sending DISC\n");
                     return -1;
                 }
                 while (stop == FALSE && alarmCount < timout) {
@@ -528,10 +581,20 @@ int llclose(int showStatistics) {
                 }
                 alarmCount = 0;
             }
-            printf("UA received\n");
             break;
         default:
             break;
+    }
+
+    clock_t end = clock();
+    double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
+
+    if(showStatistics) {
+        printf("Error frames sent: %d\n", errorsSent);
+        printf("Error frames received: %d\n", errorsReceived);
+        // printf("Rate of Bytes Sent: %f bit/s\n", (bytesSent*8 / time_spent));
+        // printf("Rate of Bytes Received: %f bit/s\n", (bytesReceived*8 / time_spent));
+        // printf("Time elapsed: %f\n", time_spent);
     }
 
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
