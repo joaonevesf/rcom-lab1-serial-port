@@ -76,17 +76,21 @@ Bitrate: 3910.710
 
 T PROP
 ---------------------------
+Time elapsed: 13.778426
+Bitrate: 6368.216515
+
+
 T_PROP 0.1
-Time elapsed: 13.210506
-Bitrate: 6641.986
+Time elapsed = 13.781638
+Bitrate: 6366.732146
 
 T_PROP 0.25
 Time elapsed: 13.275369
 Bitrate: 6609.734
 
 T_PROP 0.5
-Time elapsed: 13.203443
-Bitrate: 6645.538
+Time elapsed: 45.020910
+Bitrate: 1948.961053
 
 T_PROP 1
 Time elapsed: 13.262112
