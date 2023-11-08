@@ -292,7 +292,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     }
 
     printf("Time elapsed: %f\n", (double)(end - start) / CLOCKS_PER_SEC);
-    double bitRate = (double) globalFileSize / (double)(end - start) * CLOCKS_PER_SEC;
+    double bitRate = (double) globalFileSize * 8 / (double)(end - start) * CLOCKS_PER_SEC;
     printf("Bitrate: %f\n", bitRate);
 
     return;
