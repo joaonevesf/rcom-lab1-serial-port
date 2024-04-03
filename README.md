@@ -5,7 +5,7 @@ Simple connection protocol to send a file, in this case a `.gif`, through a seri
 
 ## Requirements
 - [gcc](https://gcc.gnu.org/)
-- [socat](https://linux.die.net/man/1/socat)
+- [socat](https://linux.die.net/man/1/socat) (virtual)
 
 ## How to run
 
